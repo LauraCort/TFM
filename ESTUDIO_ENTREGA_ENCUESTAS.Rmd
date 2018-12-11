@@ -1,0 +1,728 @@
+---
+title: "ESTUDIO_ENTREGA_ENCUESTAS"
+author: "Laura Cortés Acosta"
+output:
+  pdf_document: default
+---
+
+*INSTALAMOS LAS LIBRERIAS*
+```{r}
+if (!require('tidyverse')) install.packages('tidyverse'); library('tidyverse')
+if (!require('lubridate')) install.packages('lubridate'); library('lubridate')
+if (!require('psych')) install.packages('psych'); library('psych')
+if (!require('ggplot2')) install.packages('ggplot2'); library('ggplot2')
+if (!require('dplyr')) install.packages('dplyr'); library('dplyr')
+if (!require('ggbeeswarm')) install.packages('ggbeeswarm'); library('ggbeeswarm')
+if (!require('outliers')) install.packages('outliers'); library('outliers')
+if (!require('fpc')) install.packages('fpc'); library('fpc')
+if (!require('animation')) install.packages('animation'); library('animation')
+if (!require('factoextra')) install.packages('factoextra'); library('factoextra')
+
+```
+
+```{r}
+coyunturaual2<-read.csv("UAL2015_2017.csv", sep = ";")
+View(coyunturaual2)
+attach(coyunturaual2)
+
+```
+
+** Estudio descriptivo de los datos previo a un análisis en profundidad (sin agrupar las variables previamente) **
+
+
+```{r}
+
+str(coyunturaual2)
+#Con esta función vemos de que tipo es cada variable. 
+#Tenemos 13 variables
+#Sin embargo el hecho de que las variables que entiende como numéricas, 
+#realmente lo son, es erroneo ya que se trata de variables que aunque están
+#conformadas por números, categorizan datos (en la mayoría de los casos).
+
+colSums(is.na(coyunturaual2)) # missings por variable. Solo la variable ENVIO tiene missings, con un total de 95.
+
+mis=rowSums(is.na(coyunturaual2)) # missings por fila
+mis_rows=coyunturaual2[!complete.cases(coyunturaual2),] 
+View(mis_rows)# devuelve aquellas filas que tienen algún campo incompleto.
+#Nos encontramos las 95 filas que tienen la variable ENVIO vacías. Veamos qué #características tienen estos datos.
+
+
+
+mis_rows_2=subset(coyunturaual2,!is.na(coyunturaual2$ENVIO)) 
+View(mis_rows_2)# devuelve aquellas filas que no tienen ningún campo incompleto.
+
+```
+
+
+** Pasemos las variables a tipo factor para poder comparar entre ambos conjunto y ver en qué se podrían diferenciar **
+```{r}
+## Conjunto 1
+mis_rows$ANO=as.factor(mis_rows$ANO)
+mis_rows$MES=as.factor(mis_rows$MES)
+mis_rows$RESULTA=as.factor(mis_rows$RESULTA)
+mis_rows$ENVIO=as.factor(mis_rows$ENVIO)
+mis_rows$SWGESTORIA=as.factor(mis_rows$SWGESTORIA)
+mis_rows$CODTAME=as.factor(mis_rows$CODTAME)
+
+summary(mis_rows)
+
+
+## Conjunto 2
+mis_rows_2$ANO=as.factor(mis_rows_2$ANO)
+mis_rows_2$MES=as.factor(mis_rows_2$MES)
+mis_rows_2$RESULTA=as.factor(mis_rows_2$RESULTA)
+mis_rows_2$ENVIO=as.factor(mis_rows_2$ENVIO)
+mis_rows_2$SWGESTORIA=as.factor(mis_rows_2$SWGESTORIA)
+mis_rows_2$CODTAME=as.factor(mis_rows_2$CODTAME)
+
+summary(mis_rows_2)
+```
+
+```{r}
+dim(coyunturaual2) # vemos que se trata de un fichero de 57931 filas (envíos) o registros y 13 variables.
+```
+
+```{r}
+summary(coyunturaual2) #nos muestra los estadísticos más relevantes de cada una de las variables.
+```
+
+```{r}
+
+# Vemos que el rango de años en los que se producen estos envíos va de 2015 a 2017:
+min(ANO) # 2015
+max(ANO) # 2017
+# Esto también lo veíamos en el "summary" de todas las variables
+```
+
+** Veamos cada una de las variables un poco más en profundidad **
+```{r}
+table(CODENCUEST) 
+round(prop.table(table(CODENCUEST))*100,1) 
+#tenemos un 67,4% de encuentas M y un 32,6% de las S
+```
+
+```{r}
+# Son los 4 últimos meses del año los que más envíos tienen
+sort(table(MES),decreasing=TRUE) # ordenándolos por frecuencia de aparición, lo vemos mejor. 
+table(NORDENTRANS) #Empresas
+min(table(NORDENTRANS)) # 2 veces es el mínimo número de veces en que aparece la misma empresa repetida
+max(table(NORDENTRANS)) # 36 veces es el máximo de veces en que aparece la misma empresa repetida en los registros. 
+
+prop.table(table(RESULTA)) # como ya sabíamos, con mucha diferencia, en el 88.5% de ocasiones, el cuestionario es terminado
+
+sort(table(FECRESULTA,useNA="ifany"))
+min(table(FECRESULTA)) # el mínimo de cuestinarios en un día es de 1
+max(table(FECRESULTA)) # el máximo, 559 (fue el día 28/04/2017)
+table(TIPOREGIST)
+prop.table(table(TIPOREGIST)) # tenemos 6608 en que no se recogido el cuestionario (o no hacía falta) (denotado por el valor cero) y con bastante diferencia, el 68.94% de las veces, el cuestionario fue recogido vía IRIA, por web (denotado por la letra W). El segundo método más frecuente para el envío es por teléfono (letra T) con un 14.15% de las veces.
+
+max(table(SGSPRIGRAB))#  46544 son el máximo de segundo, casi 13h, que se ha tardado en cumplimentar el cuestionario por personal del INE
+
+table(SGSTOTDEPU) # hay 6294 casos en que no se ha tardado ningún segundo en depurar un cuestionario
+
+numaccdepu=table(NUMACCDEPU) # en 6288 casos, es 0 el número de accesos a depuración del cuestionario. Sin embargo el valor con mayor frecuencia (43992 veces), es 1 vez el número de accesos a depuración del cuestionario. 
+
+sort(table(NUMACCDEPU),decreasing = TRUE)
+barplot(numaccdepu,main="Número accesos a depuración",col="red")
+
+prop.table(table(SWGESTORIA)) # El 64.74% de las empresas son las encargadas de rellenar los cuestionarios, frente al 35.26 que lo realiza una gestoría.
+
+codtame=table(CODTAME) # no hay ningún caso en que el valor sea 21, con lo que no hay ninguna empresa que tenga 5000 o más empleados. El caso más recurrente es el de 0 es decir son autonomos.
+codtame# Le sigue el caso en que el valor es 11 (entre 1 y 2 trabajadores) y 12 (de 3 a 5 trabajadores).
+
+round(sort(prop.table(table(CODTAME)),decreasing = TRUE)*100,1)
+# podemos ver la frecuencia relativa de apararición frente al total y vemos por ejemplo que en el 24.3% de los casos sobre el total son autónomos.
+
+barplot(codtame,main="Número trabajadores",col="yellow")
+
+# Frecuencias cruzadas  
+codecuest_mes=table(CODENCUEST,MES)
+colors = c("green","orange")
+regions <- c("M : ICM","S : IASS ")
+barplot(codecuest_mes,main="Tipo Encuesta por mes", col = colors)
+legend("topleft", regions, cex = 0.5, fill = colors)
+
+codencuest_ano=table(CODENCUEST,ANO) # de nuevo, podemos ver las mismas conclusiones pero por años. La diferencia entre ambos casos, es bastante notable
+colors = c("pink","yellow")
+regions <- c("M","S")
+barplot(codencuest_ano,main="Frecuencia Tipo Encuesta y Año", col = colors)
+legend("topleft", regions, cex = 0.5, fill = colors)
+
+xtabs(~ TIPOREGIST + CODENCUEST + ANO, coyunturaual2)
+
+resulta_ano=table(RESULTA,ANO)
+colors = c("green","orange","pink","yellow","blue","red","black","purple","grey","violetred4")
+regions <- c("1","2","3","4","5","6","7","8","9","10")
+barplot(resulta_ano,main="Tipo Resulta por año", col = colors)
+legend("topleft", regions, cex = 0.5, fill = colors)
+
+table(CODTAME,ANO) 
+xtab1= xtabs(~ CODTAME + ANO, coyunturaual2)
+addmargins(xtab1) # sumas   
+prop.table(xtab1) # frecuencias respecto del total
+prop.table(xtab1, margin = 1) # proporción respecto a la suma de cada fila 
+prop.table(xtab1, margin = 2) # proporción respecto a la suma de cada columna
+
+
+```
+
+**Estadísticas gráficas**
+```{r}
+
+
+Gestoria<-round(prop.table(table(SWGESTORIA))*100, 1)
+names(Gestoria)<-c("Empresa","Otro medio")
+label<-paste(names(Gestoria),Gestoria,"%", sep = "  ")
+pie(Gestoria,labels=label, col = c("Blue","Yellow"),labelcex=1.0,explode=0.1,main="Procedencia del dato")
+# Como sabíamos, en la mayoría de los casos, el dato lo da la empresa directamente.
+
+barplot(summary(CODENCUEST), col=c("pink","green"), main="Frecuencia de envío",legend=c("M:~18 de cada mes","S:~26 de cada mes")) # plot(CODENCUEST,main="Frecuencia de las fechas de envío", col= "blue"), saca el mismo resultado
+# Igual que antes podíamos observar numéricamente, vemos ahora que el caso mayoritario en cuanto a la frecuencia de las fechas de envío es el relativo al valor M que representaba el día 18 aproximadamente, de cada mes. 
+
+hist(MES, col="lightblue2", main="Mes asignado para cada registro") # los meses con mayor afluencia de envíos son los 4 últimos meses del año.
+
+barplot(table(CODTAME), main="Número de trabajadores (categórico)",col = "yellow", xlab="CODTAME",ylab = "FRECUENCIA")
+
+barplot(table(TIPOREGIST), col = "steelblue", main="Tipo de registro", xlab="TIPOREGIST")
+
+# Veamos si por ejemplo las variables SGSPRIGRAB y SGSTOTDEPU tienen relación
+plot(SGSPRIGRAB,SGSTOTDEPU) # no parece que tengan ninguna relación
+cor(SGSPRIGRAB,SGSTOTDEPU) # 0.053397, muy débil
+
+# Veamos si por ejemplo las variables NUMACCDEPU y SGSTOTDEPU tienen relación
+plot(NUMACCDEPU,SGSTOTDEPU) # no parece que tengan ninguna relación
+cor(NUMACCDEPU,SGSTOTDEPU) # 0.2892611, muy débil
+
+# Veamos si por ejemplo las variables NUMACCDEPU y SGSPRIGRAB tienen relación
+plot(NUMACCDEPU,SGSPRIGRAB) # no parece que tengan ninguna relación
+cor(NUMACCDEPU,SGSPRIGRAB) # 0.05941257, muy d?bil
+
+hist(SWGESTORIA, col=c("yellow","blue"), main="Procedencia del dato",ylab="Frecuencia",nclass=2) # como habíamos comentado en los resultados numéricos, hay muchos más casos en que el 0 hace presencia indicando que la procedencia del dato viene por parte de la empresa.
+
+boxplot(SGSPRIGRAB,main="Segundos en cumplimentar el cuestionario por INE",border="grey",xlab="SGSPRIGRAB")
+
+# Veamos ese outlier que parece que hay en la variable SGSPRIGRAB
+plot(SGSPRIGRAB,MES,main="Segundos en cumplimentar el cuestiornario (INE) por mes") 
+text(SGSPRIGRAB,MES,labels = row.names(coyunturaual2),pos=2,col="blue") # el caso 4434 es un posible outlier (se da en junio)
+#!out_3891=coyunturaual2[4434,] # es un caso en que la variable SGSPRIGRAB=7867 la cual es bastante más elevado que el resto de casos en esa variable, pues el segundo caso más alto, tiene un valor de 1421. El outlier est? asociado a la empresa '150080270MM'.
+#outlier(SGSPRIGRAB) # obtenemos el valor que sab?amos, 7867.
+# Tendremos que fijarnos si esa empresa vuelve a resaltar en alg?n aspecto posterior que nos haga notarla como destacada  
+
+```
+
+```{r}
+out_3891=coyunturaual2[3891,] # es un caso en que la variable SGSPRIGRAB=7867 la cual es bastante más elevado que el resto de casos en esa variable, pues el segundo caso más alto, tiene un valor de 1421. El outlier esta asociado a la empresa '150080270MM'.
+outlier(SGSPRIGRAB) # obtenemos el valor que sabíamos, 7867.
+# Tendremos que fijarnos si esa empresa vuelve a resaltar en alg?n aspecto posterior que nos haga notarla como destacada         
+
+# Vamos a generar una funci?n que nos muestre los outliers de la variable que le indicamos, además de otra informaci?n muy ?til acerca de ?l (media de outliers en la variable, la proporci?n que representa, gráficos, la posibilidad de elimnarlos,...)
+outlierKD <- function(dt, var) {
+     var_name <- eval(substitute(var),eval(dt))
+     na1 <- sum(is.na(var_name))
+     m1 <- mean(var_name, na.rm = T)
+     par(mfrow=c(2, 2), oma=c(0,0,3,0))
+     boxplot(var_name, main="Con outliers")
+     hist(var_name, main="Con outliers", xlab=NA, ylab=NA)
+     outlier <- boxplot.stats(var_name)$out
+     mo <- mean(outlier)
+     var_name <- ifelse(var_name %in% outlier, NA, var_name)
+     boxplot(var_name, main="Sin outliers")
+     hist(var_name, main="Sin outliers", xlab=NA, ylab=NA)
+     title("Comprobaci?n outlier", outer=TRUE)
+     na2 <- sum(is.na(var_name))
+     cat("Outliers identificados:", na2 - na1, "n")
+     cat("Proporci?n (%) de outliers:", round((na2 - na1) / sum(!is.na(var_name))*100, 1), "n")
+     cat("Media de los outliers:", round(mo, 2), "n")
+     m2 <- mean(var_name, na.rm = T)
+     cat("Media sin quitar los outliers:", round(m1, 2), "n")
+     cat("Media si eliminamos los outliers:", round(m2, 2), "n")
+     response <- readline(prompt="?Quieres eliminar los outliers y sustituirlos por NA? [si/no]: ")
+     if(response == "s" | response == "si"){
+          dt[as.character(substitute(var))] <- invisible(var_name)
+          assign(as.character(as.list(match.call())$dt), dt, envir = .GlobalEnv)
+          cat("Outliers eliminamos con ?xito", "n")
+          return(invisible(dt))
+     } else{
+          cat("Nada ha cambiado", "n")
+          return(invisible(var_name))
+     }
+}
+
+# Lo comprobamos:
+outlierKD(coyunturaual2,SGSPRIGRAB)
+
+# Segundo estudio de outliers
+boxplot(SGSTOTDEPU,main="Segundos en depurar el cuestiornario",border="grey",ylab="SGSTOTDEPU",horizontal=TRUE)
+
+# Como parece que hay, vamos a estudiarlos en profundidad
+plot(SGSTOTDEPU,MES,main="Segundos en depurar el cuestiornario por mes") 
+text(SGSTOTDEPU,MES,labels = row.names(coyunturaual2),pos=2,col="blue") # los casos 313 y 2096 son posibles outliers (se dan en noviembre y diciembre)
+out_36299=coyunturaual2[313,] # es un caso en que la variable SGSTOTDEPU=7304 la cual es bastante más elevado que el resto de casos en esa variable, pues el segundo caso m?s alto, tiene un valor de 4330. Este se corresoonde con la empresa '094070437MM'.
+out_32118=coyunturaual2[2096,] # es un caso en que la variable SGSTOTDEPU=8089 la cual es bastante m?s elevado que el resto de casos en esa variable, pues el segundo caso m?s alto, tiene un valor de 4330.
+outlier(SGSTOTDEPU) # esta funci?n entiende que el outlier es el que toma el valor 8089. Este se corresponde con la empresa '732143297MM'.
+# Ninguno de ellos coincide con la empresa vista antes.
+outlierKD(coyunturaual2,SGSTOTDEPU) # podemos ver en los gr?ficos, como cuando se eliminan los outliers detectados por la funci?n, la situación se estabiliza muchisimo
+```
+
+
+
+**Pasamos a estructurar los datos de la tabla de manera más detallada y sacando toda la información lo más desglosada posible**
+
+# Vamos a ir visualizando en casa paso, cómo va quedando la tabla de datos
+# Elimino los casos que no contengan la variable ENVIO rellena
+
+```{r message=FALSE,warning=FALSE}
+coyunturaNueva = coyunturaual2[!is.na(ENVIO),]   # ENVIO_NO_NA<-na.omit(ENVIO) es otro modo
+dim(coyunturaNueva) # 57836 registros y 13 variables
+# con lo que hemos eliminado 95 casos (un 0.16% de los datos)
+# Era necesario hacerlo porque de esos casos no íbamos a poder obtener estadísticas de si había habido retraso o no, en la entrega
+
+attach(coyunturaNueva)
+
+# Revisamos si queda algún NA en la variable ENVIO
+length(!is.na(ENVIO)) # como vemos, obtenemos el valor es el total de los datos, 57931 lo que nos indica que todos los datos son ya distintos de NA
+```
+
+
+# Convertimos el código de encuesta por el día límite de entrega por clarifica dicha variable 
+```{r}
+CODENCUEST<-as.character(coyunturaNueva$CODENCUEST)
+dialim<-replace(CODENCUEST,CODENCUEST=="M","18")
+dialimite<-replace(dialim,dialim=="S","26")
+as.numeric(dialimite)
+coyunturaNueva["DiaLimiteEntrega"] <- dialimite
+
+
+# Eliminemos por tanto la variable CODENCUEST porque no la utilizaremos (usaremos "DiaLimiteEntrega")
+coyunturaNueva <- coyunturaNueva[,-2]
+head(coyunturaNueva)
+
+# Pasamos esta nueva variable a una de tipo factor
+coyunturaNueva$DiaLimiteEntrega<-as.factor(coyunturaNueva$DiaLimiteEntrega)
+```
+
+
+```{r}
+# Vamos a reemplazar tambien los campos SWGESTORIA donde O es NO (no tiene gestoria) y 1 SI (si la tiene)
+
+#SWGESTORIA<-as.character(coyunturaNueva$SWGESTORIA)
+#gest<-replace(SWGESTORIA,SWGESTORIA=="0","NO")
+#GESTORIA<-replace(gest,gest=="1","SI")
+
+#coyunturaNueva$GESTORIA<-coyunturaNueva$SWGESTORIA
+
+table(SWGESTORIA) # podemos apreciar que en la muchos de los casos no se dispone de gestoría 
+
+round(prop.table(table(SWGESTORIA))*100,1)
+
+# Pasamos esta nueva variable a una de tipo factor
+#coyunturaNueva$Gestoria<-as.factor(coyunturaNueva$SWGESTORIA)
+
+# Eliminemos por tanto la variable SWGESTORIA porque no la utilizaremos (usaremos "Gestoría")
+#coyunturaNueva <- coyunturaNueva[,-11]
+head(coyunturaNueva)
+```
+
+
+
+# A los casos en que la variable TIPOREGIST esté vacía, tenga un 0, (indica que o bien no se ha recogido el cuestionario o que no hacía falta), les asignamos un NO que represente esa situación (para también tenerlos en cuenta, ya que inicialmente están marcados como vacíos)
+```{r}
+TIPOREGIST<-as.character(coyunturaNueva$TIPOREGIST)
+TIPOREGIST<-replace(TIPOREGIST,TIPOREGIST=="0","NO")
+coyunturaNueva["TIPOREGIST"] <- TIPOREGIST
+table(TIPOREGIST) # tenemos 6608 casos en los que se daba esta situación (suponen el 11,4% del total)
+round(prop.table(table(TIPOREGIST))*100,1)
+```
+
+
+# Vamos a separar el campo FECRESULTA en tres columnas: dia, mes y año de RESULTA
+```{r}
+FECRESULTA<-as.character(coyunturaNueva$FECRESULTA)
+FECRESULTA<-as.Date(coyunturaNueva$FECRESULTA,"%d/%m/%Y")
+
+# Día
+diaResulta <- format(FECRESULTA,"%d")
+as.numeric(diaResulta)
+coyunturaNueva["DiaResulta"] <- diaResulta
+
+coyunturaNueva$DiaResulta<-as.factor(coyunturaNueva$DiaResulta)
+
+# Mes
+mesResulta <- format(FECRESULTA,"%m")
+as.numeric(mesResulta)
+coyunturaNueva["MesResulta"] <- mesResulta
+
+coyunturaNueva$MesResulta<-as.factor(coyunturaNueva$MesResulta)
+
+# Año
+anoResulta <- format(FECRESULTA,"%Y")
+as.numeric(anoResulta)
+coyunturaNueva["AnoResulta"] <- anoResulta
+
+coyunturaNueva$AnoResulta<-as.factor(coyunturaNueva$AnoResulta)
+
+## Eliminamos la variable FECRESULTA ya que ya la tenemos desglosada en las tres anteriores
+coyunturaNueva <- coyunturaNueva[,-5]
+```
+
+# Unimos las variables de DiaResulta y MesResulta para poder comparar los casos con la variable ENVIO y a esta última variable le quitamos los últimos dos dígitos, ya que no hace referencia a lo que buscamos (es el número de envío dentro de ese mes)
+
+```{r}
+# Creamos el campo ENVIO1 con el formato mes/año que habíamos comentado anteriormente
+ENVIO1=(coyunturaNueva$ENVIO-2)/100
+coyunturaNueva["ENVIO1"] <- ENVIO1
+head(coyunturaNueva)
+table(ENVIO1)
+
+# Creamos las columnas con el mes y el año de envio
+mes1 = coyunturaNueva[,"ENVIO1"]%/%100
+as.numeric(mes1)
+coyunturaNueva["mes1"] <- mes1
+ano1 = coyunturaNueva[,"ENVIO1"]%%100
+as.numeric(ano1)
+coyunturaNueva["ano1"] <- ano1
+
+# Creamos una columna con los dias de antelación (o retraso) en enviar la encuesta
+# Para ello, primero creamos 'fecha de envío' y 'máxima de entrega'
+fecha_env=paste(coyunturaNueva$DiaResulta,coyunturaNueva$mes1, coyunturaNueva$ano1, sep="-")
+coyunturaNueva["fecha_env"] <- fecha_env
+fecha_env<-as.Date(coyunturaNueva$fecha_env,"%d-%m-%y")
+
+f_maxentreg=paste(coyunturaNueva$DiaLimiteEntrega,coyunturaNueva$MES, coyunturaNueva$ANO, sep="-")
+coyunturaNueva["f_maxentreg"] <- f_maxentreg
+f_maxentreg<-as.Date(coyunturaNueva$f_maxentreg,"%d-%m-%Y")
+
+# Calculamos su diferencia
+diasTarda=f_maxentreg-fecha_env
+as.character(diasTarda)
+diasTarda<-as.numeric(diasTarda)
+coyunturaNueva["diasTarda"] <- diasTarda
+
+# Si observamos los valores obtenidos,
+summary(diasTarda) # podemos ver que la media es positiva, 4.886, con lo que es un datos positivo pues nos está diciendo que en la mayoría de los casos las encuestas se entregan antes de la fecha máxima de envío.
+# Podemos observar también que el valor mínimo es un atraso de la encuesta de -323 días, y el valor máximo de 25 nos indica que la vez que antes se entrege una encuesta, fue 25 días antes de la fecha tope para hacerlo
+# Tenemos 233 casos en que no hemos podido calcular este valor debido a la falta de fecha/s (233 NA's)
+
+hist(diasTarda, col="yellow3", main="Distribución de los días de entrega")
+# vemos claramente una distribución no centrada, lo cual ya intuíamos por el resumen estadístico en que hemos visto que los valores de la media y la mediana no eran iguales. En este gráfico podemos observar que los resultados son buenos porque aunque tenemos valores negativos muy altos, la gran porcentaje de los casos se encuentra a la derecha del gráfico indicando que en la mayoría de los casos las encuestas se entragan antes de la fecha tope para hacerlo.
+```
+
+## Pasemos a estudiar el comportamiento de las empresas sin agruparlas
+```{r}
+# Los días en que se retrasa el envío son:
+
+D_Tarda <- subset(diasTarda, diasTarda<0) # obtenemos los casos negativos (atraso)
+length(D_Tarda) # nos encontramos con 7527 casos en los que la encuesta se ha atrasado (de un total de 57931 casos que tiene la variable 'diasTarda') suponiendo el 10.5% del total. Este dato es positivo ya que este porcentaje es bastante ínfimo sobre el total.
+summary(D_Tarda) # el mínimo valor es -323 y el mayor, -1 con lo que vemos que hay bastante diferencia. La media es de 22 días de atraso, lo cual es un valor a tener en cuenta en sentido negativo pues es un valor grande 
+hist(D_Tarda, col="gray17", main="Distribución de los días de entrega con atraso")
+MediaTardaG<-mean(abs(D_Tarda),na.rm=TRUE)
+
+# Su desviación típica es:
+DesvTardG<-sqrt(var(abs(D_Tarda),na.rm=TRUE))
+DesvTardG# es 28.87813, indicando la dispersión que sufren estos datos (cuanto menor sea su valor, mayor será la concentración de los datos alrededor de la media).
+
+```
+
+
+
+```{r}
+#Los dias de adelanto que entregan:
+DiasAdelanto <- subset(diasTarda, diasTarda>=0)
+length(DiasAdelanto) # 50171 (suponen el 86.6% del total de casos)
+summary(DiasAdelanto) # el mínimo es 0 (se entrega justo el día tope) y el máximo es 25 días de antelación en la entrega de la encuesta. La mayoría de los casos se entrega dicha encuesta cerca de los 10 días antes de la fecha tope (media) y este valor no es muy alejado de la mediana con lo que la distribución es más homogénea que en el caso de los días en que la encuesta se entrega con atraso
+table(DiasAdelanto)
+hist(DiasAdelanto, col="violetred2", main="Distribución de los días de entrega a tiempo")
+MediaAdG<-mean(DiasAdelanto,na.rm=TRUE)
+
+# Su desviación típica es:
+DesvAdG<-sqrt(var(DiasAdelanto,na.rm=TRUE)) 
+DesvAdG# 5.710477 vemos que como ya suponíamos, al tener un valor bastante inferior que en el caso de días de atraso, los datos se encuentran mucho más concentramos en torno al valor de la media
+
+# Coeficiente de variación: 
+CVAdG<-sqrt(var(DiasAdelanto,na.rm=TRUE))/mean(DiasAdelanto,na.rm=TRUE) # 0.572767: obtenemos un valor inferior a 1 (lo normal), y es un parámetro que solo podemos calcular cuando no tenemos valores negativos. Indica el tamaño relativo de la desviación estándar respecto a la media.  
+```
+
+
+# Veámos cuántas empresas distintas tenemos en nuestros datos:
+```{r}
+Empresas <- unique(coyunturaNueva$NORDENTRANS)
+cat('El número de empresas distintas es de:', length(Empresas)) # 2928 empresas distintas (con lo que tenemos varios registros de ellas)
+```
+
+# Vamos a ampliar la información que ya teníamos de la variable RESULTA
+```{r}
+print('El porcentaje de resultas:')
+PorcResulta<-round(prop.table(table(RESULTA))*100, 3)
+barplot(PorcResulta, col = rainbow(length(PorcResulta)),main='TIPOS DE RESULTA',ylim = c(0, 100)) # gráficamente vemos lo que ya sabíamos de que es el caso para el valor 6, el que más datos reune
+```
+
+
+# Hacemos lo mismo para la variable Gestoría
+```{r}
+Gestorr<-round(prop.table(table(SWGESTORIA))*100, 3) # vemos que en casi 2/3 de las empresas no tienen gestoria.
+names(Gestorr)<-c("NO","SI")
+label<-paste(names(Gestorr),Gestorr,"%", sep = "  ")
+pie(Gestorr ,labels=label, col = c("Blue","Grey"),main = "Empresas con gestoría")
+```
+
+
+# De nuevo, ahora con la variable TIPOREGIST
+```{r}
+PorcTReg<-round(prop.table(table(TIPOREGIST))*100, 3)
+barplot(PorcTReg, xlab="Registros" ,ylab = "Porcentaje",col = heat.colors(length(PorcTReg)), main = 'TIPOS DE REGISTROS', ylim = c(0,100))
+```
+
+
+# Creamos una función con entrada un valor de NORDENTRANS y como salida por pantalla, los datos más relevantes de esa empresa
+
+```{r}
+
+infoEmpres<-function(x){
+  Infor<- coyunturaNueva[which(coyunturaNueva$NORDENTRANS==x),]
+  DiaTard <- subset(Infor$diasTarda, Infor$diasTarda<0)
+  if(length(DiaTard)!=0){
+    print('Los días que tarda son:')
+    print(DiaTard)
+    print('La media de los días que tarda la empresa en enviar las encuestas es de:')
+    print(mean(abs(DiaTard),na.rm=TRUE))
+    print('Con una desviación típica:')
+    print(sqrt(var(abs(DiaTard),na.rm=TRUE)))
+  }else{
+    print('Envía las encuestas a tiempo')}
+
+  DiaAdelanto <-subset(Infor$diasTarda, Infor$diasTarda>=0)
+  if(length(DiaAdelanto)!=0){
+    print('Los días de adelanto:')
+    print(DiaAdelanto)
+    print('La media de los días de adelanto con que la empresa envía las encuestas es de:')
+    print(mean(abs(DiaAdelanto),na.rm=TRUE))
+    print('Con una desviación típica:')
+    print(sqrt(var(abs(DiaAdelanto),na.rm=TRUE)))
+  }else{
+    print('Envía las encuestas tarde')
+  }
+  
+  print('El porcentaje de RESULTA de esta empresa es de:')
+  print(round(prop.table(table(Infor$RESULTA))*100, 3))
+  print('El porcentaje de TIPOREGIST es:')
+  print(round(prop.table(table(Infor$TIPOREGIST))*100, 3))
+  print('¿Tiene gestoría?')
+  print('Sabemos que 1 es SI y 0 es NO')
+  print(table(Infor$SWGESTORIA))
+  }
+
+#Pruebo con un par de empresas:
+infoEmpres('146020561SS')
+infoEmpres('616029859MM')
+
+```
+
+
+#################################################################################
+
+
+## Pasemos a otra fase del estudio descriptivo en la que agrupamos por empresas
+# Creamos matriz con los datos agrupados por empresas
+
+```{r}
+
+for(i in 1:length(Empresas)){ 
+  
+  codigoEmpresa <-levels(Empresas)[i]
+
+  #Media dias temprano y su longitud
+  values=subset(coyunturaNueva, coyunturaNueva$NORDENTRANS==codigoEmpresa & diasTarda>=0) # todos los valores de todas las variables
+  earlyDays <-subset(diasTarda ,coyunturaNueva$NORDENTRANS==codigoEmpresa & diasTarda>=0) # solo los valores para diaTarda
+  mediaEarlyDays <- mean(earlyDays,na.rm=TRUE)
+  mediaEarlyDays[is.na(mediaEarlyDays)] <- 0
+  longitudEarlyDays<- length(earlyDays)
+  
+  # Media días tarde y su longitud
+  values=subset(coyunturaNueva, coyunturaNueva$NORDENTRANS==codigoEmpresa & diasTarda<0)
+  lateDays <-subset(diasTarda ,coyunturaNueva$NORDENTRANS==codigoEmpresa & diasTarda<0)
+  mediaLateDays <- mean(abs(lateDays),na.rm=TRUE)
+  mediaLateDays[is.na(mediaLateDays)] <- 0
+  longitudLateDays<-length(lateDays)
+  
+  # Creamos las variables de porcentaje RESULTA en nuestra matriz
+  # Con esto, lo que vamos a obtener son las frecuencias relativas de cada uno de los tipos de RESULTA que tenemos en los datos, para cada una de las empresas 
+  
+  SubTabEmp <- subset(coyunturaNueva, coyunturaNueva$NORDENTRANS==codigoEmpresa)
+  tableProp <- prop.table(table(SubTabEmp$RESULTA))*100
+  
+  Resulta_1 <- 0
+  Resulta_2 <- 0
+  Resulta_3 <- 0
+  Resulta_4 <- 0
+  Resulta_5 <- 0
+  Resulta_6 <- 0
+  Resulta_7 <- 0
+  Resulta_8 <- 0
+  Resulta_9 <- 0
+  Resulta_10 <- 0
+  
+  for(j in 1:length(tableProp)){
+    if(length(tableProp)!=0){ 
+      if(rownames(tableProp)[j]==1){
+        Resulta_1 <- tableProp[[j]]
+      } else if(rownames(tableProp)[j]==2 ){
+        Resulta_2 <- tableProp[[j]]
+      } else if(rownames(tableProp)[j]==3 ){
+        Resulta_3 <- tableProp[[j]]
+      } else if(rownames(tableProp)[j]==4 ){
+        Resulta_4 <- tableProp[[j]]
+      } else if(rownames(tableProp)[j]==5 ){
+        Resulta_5 <- tableProp[[j]]
+      } else if(rownames(tableProp)[j]==6 ){
+        Resulta_6 <- tableProp[[j]]
+      } else if(rownames(tableProp)[j]==7 ){
+        Resulta_7 <- tableProp[[j]]
+      } else if(rownames(tableProp)[j]==8 ){
+        Resulta_8 <- tableProp[[j]]
+      } else if(rownames(tableProp)[j]==9 ){
+        Resulta_9 <- tableProp[[j]]
+      } else{
+        Resulta_10 <- tableProp[[j]]
+      }
+    }
+  }
+
+  # Creamos los porcentajes de los tipos de registro de cada empresa
+  Prop_Registros <- prop.table(table(SubTabEmp$TIPOREGIST))*100
+  
+  NoRecogido <- 0
+  Tipo_Carta <- 0
+  Tipo_Email <- 0
+  Tipo_Fax <- 0
+  Tipo_Otros <- 0
+  Tipo_Telefono <- 0
+  Tipo_Web <- 0
+  
+  for(j in 1:length(Prop_Registros)){
+    if(length(Prop_Registros)!=0){ 
+      if(rownames(Prop_Registros)[j]=='W'){
+        Tipo_Web <- Prop_Registros[[j]]
+      } else if(rownames(Prop_Registros)[j]=='C' ){
+        Tipo_Carta <- Prop_Registros[[j]]
+      } else if(rownames(Prop_Registros)[j]=='E' ){
+        Tipo_Email <- Prop_Registros[[j]]
+      } else if(rownames(Prop_Registros)[j]=='F' ){
+        Tipo_Fax <- Prop_Registros[[j]]
+      } else if(rownames(Prop_Registros)[j]=='O' ){
+        Tipo_Otros <- Prop_Registros[[j]]
+      } else if(rownames(Prop_Registros)[j]=='T' ){
+        Tipo_Telefono <- Prop_Registros[[j]]
+      } else{
+        NoRecogido <- Prop_Registros[[j]]
+      }
+    }
+  }
+  
+  # Creamos la variable porcentaje Gestoría en nuestra matriz
+    tablePropGest <- prop.table(table(SubTabEmp$SWGESTORIA))*100
+    
+    SiTiene <- 0
+    NoTiene <- 0
+    
+    for(j in 1:length(tablePropGest)){
+      if(length(tablePropGest)!=0){ 
+        if(rownames(tablePropGest)[j]==1){
+          SiTiene <- tablePropGest[[j]]
+        } else if(rownames(tablePropGest)[j]==0){
+          NoTiene <- tablePropGest[[j]]
+      }
+    }
+    }
+  
+# Generamos el vector de datos con los que vamos a ir rellenando por filas, la matriz final
+  miVector <- c(codigoEmpresa,mediaEarlyDays, longitudEarlyDays, mediaLateDays, longitudLateDays,Resulta_1,Resulta_2,Resulta_3,Resulta_4,Resulta_5,Resulta_6,Resulta_7,Resulta_8,Resulta_9,Resulta_10,NoRecogido,Tipo_Carta,Tipo_Email,Tipo_Fax,Tipo_Otros,Tipo_Telefono,Tipo_Web,SiTiene,NoTiene)
+
+  # La matriz ser?:
+  if(i==1){
+    miMatriz <- matrix(miVector, nrow=1, byrow=T)
+  }else { 
+    miMatriz <- rbind(miMatriz,miVector)
+  }
+}
+
+# Nombramos las variables con sus respectivos nombres
+colnames(miMatriz)<-c("Empresa","Media_dias_adelanto","Veces_adelanto","Media_dias_tarde", "Veces_atraso","Blanco","Incidencia","No_Contacto","No_Enviara","Enviara","Limpio","Baja","Depuracion","Inc_Definitiva","Inc_Provisional","NoRecogido","Tipo_Carta","Tipo_Email","Tipo_Fax","Tipo_Otros","Tipo_Telefono","Tipo_Web", "Tiene_Gestoria","No_Tiene_Gestoria")
+
+```
+
+
+## Vamos a pasar a observar este nuevo conjunto de datos dados por la matriz con los registros agrupados de cada una de las empresas, con mas detalle
+
+```{r warning=FALSE,message=FALSE}
+
+# Convertimos la matriz en un DataFrame
+agrupados<-data.frame(miMatriz) # le hemos añadido también la variable Empresa para saber a cuál de ellas nos referimos en cada caso
+attach(agrupados)
+
+dim(agrupados) # 2928 registros (igual al número de empresas sin repetir, que tenemos) y 24 variables
+
+# Resumen descriptivo del nuevo dataFrame agrupado    
+summary(agrupados)
+describe(agrupados) # vemos los mismos resultados que con la función anterior, y otros de añadido
+```
+
+
+
+
+# Nombramos las filas con los códigos de las empresas y eliminamos dicha columna
+
+```{r}
+rownames(agrupados)=agrupados$Empresa
+agrupados<-agrupados[,-1]
+```
+
+
+
+#Pasamos la variables a tipo númerico
+```{r}
+as.numeric.factor <- function(x) {as.numeric(levels(x))[x]}
+
+agrupados$Media_dias_adelanto=as.numeric.factor(agrupados$Media_dias_adelanto)
+agrupados$Veces_adelanto=as.numeric.factor(agrupados$Veces_adelanto) 
+agrupados$Media_dias_tarde=as.numeric.factor(agrupados$Media_dias_tarde)  
+agrupados$Veces_atraso=as.numeric.factor(agrupados$Veces_atraso)  
+agrupados$Blanco=as.numeric.factor(agrupados$Blanco)
+agrupados$Incidencia=as.numeric.factor(agrupados$Incidencia)  
+agrupados$No_Contacto=as.numeric.factor(agrupados$No_Contacto)
+agrupados$No_Enviara=as.numeric.factor(agrupados$No_Enviara)  
+agrupados$Enviara=as.numeric.factor(agrupados$Enviara)  
+agrupados$Limpio=as.numeric.factor(agrupados$Limpio)	
+agrupados$Baja=as.numeric.factor(agrupados$Baja)	
+agrupados$Depuracion=as.numeric.factor(agrupados$Depuracion)
+agrupados$Inc_Definitiva=as.numeric.factor(agrupados$Inc_Definitiva)
+agrupados$Inc_Provisional=as.numeric.factor(agrupados$Inc_Provisional)
+agrupados$NoRecogido=as.numeric.factor(agrupados$NoRecogido)
+agrupados$Tipo_Carta=as.numeric.factor(agrupados$Tipo_Carta)
+agrupados$Tipo_Email=as.numeric.factor(agrupados$Tipo_Email)
+agrupados$Tipo_Fax=as.numeric.factor(agrupados$Tipo_Fax)
+agrupados$Tipo_Otros=as.numeric.factor(agrupados$Tipo_Otros)	
+agrupados$Tipo_Telefono=as.numeric.factor(agrupados$Tipo_Telefono)	
+agrupados$Tipo_Web=as.numeric.factor(agrupados$Tipo_Web)
+agrupados$Tiene_Gestoria=as.numeric.factor(agrupados$Tiene_Gestoria)	
+agrupados$No_Tiene_Gestoria=as.numeric.factor(agrupados$No_Tiene_Gestoria)
+
+```
+
+
+
+```{r}
+#Creamos csv con estas nuevas variables para trabajar sobre el.
+write.table(agrupados, file = "empresas_agrupadas1.csv", sep = ";")
+```
+
+
+
+
+
+
+
+
+
+
+
+
