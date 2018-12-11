@@ -1,0 +1,1547 @@
+---
+title: "AGRUPADOS"
+author: "Laura Cortés Acosta"
+date: "5 de octubre de 2018"
+output:
+  word_document: default
+  html_document: default
+---
+
+
+```{r}
+agrupados<-read.csv("empresas_agrupadas1.csv", sep = ";")
+attach(agrupados)
+```
+
+#Modelos de regresión
+
+```{r}
+
+#Resumen datos
+
+summary(agrupados)
+
+```
+
+
+```{r}
+#Eliminamos las variables incidencia,baja, depuración,incidencia definitiva
+agrupados<-agrupados[,-c(6,11:13)]
+```
+
+
+```{r}
+cor(agrupados)
+```
+
+```{r}
+reg<-lm(Media_dias_adelanto~., data = agrupados)
+summary(reg)
+```
+
+
+
+```{r}
+library(ggplot2)
+library(GGally)
+#tipo de envio y gestoria
+
+ggpairs(agrupados[,c(1,12:19)], lower = list(continuous = "smooth"),
+        diag = list(continuous = "bar"), axisLabels = "none")
+
+ggpairs(agrupados[,c(4,12:19)], lower = list(continuous = "smooth"),
+        diag = list(continuous = "bar"), axisLabels = "none")
+```
+
+
+
+```{r}
+#Tipo envio y media dias de adelato
+
+reg<-lm(Media_dias_adelanto~., data = agrupados[,-c(12,20)])
+summary(reg)
+
+reg1<-lm(Veces_atraso~., data = agrupados[,-c(1:3,12,20)])
+summary(reg1)
+
+
+```
+
+```{r}
+#Si tomamos las veces de adelanto con respecto al tipo de envio obtenemos:
+
+reg2<-lm(Media_dias_tarde~Tipo_Carta+Tipo_Email+Tipo_Fax+Tipo_Telefono+Tipo_Web+Tipo_Otros, data = agrupados)
+summary(reg2)
+reg3<-lm(Media_dias_adelanto~Tipo_Carta+Tipo_Email+Tipo_Fax+Tipo_Telefono+Tipo_Web+Tipo_Otros, data = agrupados)
+summary(reg3)
+```
+
+```{r}
+reg4<-lm(Veces_atraso~., data=agrupados[,-c(17,19)])
+summary(reg4)
+```
+
+
+#Modelos de clasificación
+
+
+
+#Método de las componentes principales
+```{r}
+apply(agrupados, 2, var) #Vemos que la variabilidad es alta
+
+#Eliminamos los que tienen variaza cero ya que no afecta al modelo de las componentes principales.
+acp <- prcomp(agrupados, center = TRUE, scale = TRUE)
+print(acp) # tenemos tantas componentes principales como variables
+
+plot(acp, type="l") #aplicando el metodo del codo tomaremos 4 acp
+summary(acp)
+
+biplot(acp, scale=0)# no podemos visualizar nada claro
+
+
+#Creamos un data frame con acp de 12 componentes que explican el 84% de los datos
+acp1<-apply(acp$rotation[,1]*agrupados, 1, sum)
+acp2<-apply(acp$rotation[,2]*agrupados, 1, sum)
+acp3<-apply(acp$rotation[,3]*agrupados, 1, sum)
+acp4<-apply(acp$rotation[,4]*agrupados, 1, sum)
+acp5<-apply(acp$rotation[,5]*agrupados, 1, sum)
+acp6<-apply(acp$rotation[,6]*agrupados, 1, sum)
+acp7<-apply(acp$rotation[,7]*agrupados, 1, sum)
+acp8<-apply(acp$rotation[,8]*agrupados, 1, sum)
+acp9<-apply(acp$rotation[,9]*agrupados, 1, sum)
+acp10<-apply(acp$rotation[,10]*agrupados, 1, sum)
+acp11<-apply(acp$rotation[,11]*agrupados, 1, sum)
+acp12<-apply(acp$rotation[,12]*agrupados, 1, sum)
+
+
+comprinc<-data.frame(acp1,acp2,acp3,acp4,acp5,acp6,acp7,acp8,acp9,acp11,acp12)
+
+acp12
+
+```
+
+```{r}
+ biplot(prcomp(agrupados)) #no nos muestra nada claro
+```
+
+
+
+
+
+
+
+
+
+#Análisis Cluster
+
+```{r}
+#Método del codo
+# Número óptimo de clusters según el ECM
+
+wss <- (nrow(agrupados)-1)*sum(apply(agrupados,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(agrupados,centers=i)$withinss) 
+plot(1:15, wss, type="b", xlab="f Clusters", ylab="Suma de cuadrados dentro de cada cluster")
+
+# Según el método del codo el número óptimo de cluster es de 3 grupos
+
+```
+
+
+```{r}
+# Si usamos
+# Determinación y visualización óptima del número de cluster
+library(factoextra)
+
+fviz_nbclust(agrupados, kmeans, method = "gap_stat")
+
+fviz_nbclust(agrupados, kmeans, method = "silhouette")
+
+```
+
+
+
+*Los criterios de ajustes en el kmeans() se basan en los conceptos de sumas de cuadrados entre grupos (betweens) y dentro de grupos (withins). Hay que tener en cuenta que la suma de cuadrados entre grupos (betweenss) más las sumas de cuadrados dentro de grupos (tot.withinss) nos proporciona la suma de cuadrados totales (tots). Recordad también que las sumas de cuadrados corresponden a los numeradores de las varianzas correspondientes.*
+
+*Una segmentación se considera 'óptima' cuando, para cada grupo, los individuos son lo más homgéneos posibles mientras que son más heterogeneos a los individuos del resto de grupos. Dicha segmentación coincidirá con aquella que, teniendo un número de grupos razonable, posee una "suma de cuadrados entre grupos"(betweenss) suficientemente grande y, por tanto, una "suma de cuadrados dentro de grupos" (tot.withinss) suficientemente pequeña. Es decir, la varianza dentro de grupos debe ser reducida (individuos dentro de un mismo grupo tiene que ser similares) y la varianza entre grupos debe ser grande (individuos de distintos grupos tienen que ser distintos). También, tenemos que tener en cuenta que a medida que el número de grupos aumenta la suma de cuadrados entre aumenta y, por tanto, la suma de cuadrados dentro disminuye, por tanto, el analista a de decidir cuando el aumento de la suma de cuadrados entre o, alternativamente, la disminución de la suma de cuadrados dentro no son lo suficientemente pronunciados.* 
+
+*En el gráfico podemos ver  claramente como la distancia entre los cluster comienza a ser bastante constante a partir del cluster 8, lo que es indicativo de que pueden ser 8 los cluster que dividen nuestros datos.*
+
+
+
+#Tomando el número óptimo de kmeans tomaríamos 7 aunque este valor es elevado para clasificar las empresas.Aun asi lo análizaremos para ver que obtenemos con ello.
+```{r}
+#Tomamos 2 Cluster
+clusters_2<-kmeans(agrupados,centers=2) 
+clusters_2
+##Tomamos 3 Cluster
+clusters_3<-kmeans(agrupados,centers=3) 
+clusters_3
+##Tomamos 4 Cluster
+clusters_4<-kmeans(agrupados,centers=4) 
+#clusters_4
+##Tomamos 5 Cluster
+clusters_5<-kmeans(agrupados,centers=5) 
+#clusters_5
+##Tomamos 6 Cluster
+clusters_6<-kmeans(agrupados,centers=6) 
+#clusters_6
+##Tomamos 7 Cluster
+clusters_7<-kmeans(agrupados,centers=7) 
+#clusters_7
+
+
+
+
+print("Suma de cuadrados entre 2 grupos:")
+kmeans(agrupados,2)$betweenss 
+print("Suma de cuadrados entre 3 grupos:")
+kmeans(agrupados,3)$betweenss 
+print("Suma de cuadrados entre 4 grupos:")
+kmeans(agrupados,4)$betweenss 
+print("Suma de cuadrados entre 5 grupos:")
+kmeans(agrupados,5)$betweenss 
+print("Suma de cuadrados entre 6 grupos:")
+kmeans(agrupados,6)$betweenss
+print("Suma de cuadrados entre 7 grupos:")
+kmeans(agrupados,7)$betweenss 
+
+# Este valor nos interesa que sea cuanto mayor, mejor ya que los clusters entre sí deben estar espaciados y separados lo suficiente para hacer notar que son grupos distintos. 
+
+print("Suma de cuadrados dentro 2 grupos")
+kmeans(agrupados,2)$tot.withinss 
+print("Suma de cuadrados dentro 3 grupos")
+kmeans(agrupados,3)$tot.withinss 
+print("Suma de cuadrados dentro 4 grupos")
+kmeans(agrupados,4)$tot.withinss 
+print("Suma de cuadrados dentro 5 grupos")
+kmeans(agrupados,5)$tot.withinss 
+print("Suma de cuadrados dentro 6 grupos")
+kmeans(agrupados,6)$tot.withinss
+print("Suma de cuadrados dentro 7 grupos")
+kmeans(agrupados,7)$tot.withinss 
+
+# Este valor nos interesa que sea cuanto menor, mejor ya que los valores de los clusters entre sí deben estar lo suficientemente juntos para hacer notar que son valores que pertencen al mismo cluster. Por poca diferencia, es con 4 clusters con el que menor valor obtenemos.
+
+print("sumas de cuadrados total")
+kmeans(agrupados,2)$totss # 29413412 tiene que ser igual
+kmeans(agrupados,3)$totss
+kmeans(agrupados,4)$totss
+kmeans(agrupados,5)$totss
+kmeans(agrupados,6)$totss
+kmeans(agrupados,7)$totss
+```
+
+
+
+
+Creamos data frame con los diferentes Cluster 
+```{r}
+mydata2 <- data.frame(agrupados, clusters_2$cluster)
+mydata3 <- data.frame(agrupados, clusters_3$cluster)
+mydata4 <- data.frame(agrupados, clusters_4$cluster)
+mydata5 <- data.frame(agrupados, clusters_5$cluster)
+mydata6 <- data.frame(agrupados, clusters_6$cluster)
+mydata7 <- data.frame(agrupados, clusters_7$cluster)
+```
+
+```{r}
+aggregate(Media_dias_adelanto ~ clusters_2.cluster, data = mydata2, FUN = median)
+aggregate(Media_dias_adelanto ~ clusters_3.cluster, data = mydata3, FUN = median)
+aggregate(Media_dias_adelanto ~ clusters_4.cluster, data = mydata4, FUN = median)
+aggregate(Media_dias_adelanto ~ clusters_5.cluster, data = mydata5, FUN = median)
+aggregate(Media_dias_adelanto ~ clusters_6.cluster, data = mydata6, FUN = median)
+aggregate(Media_dias_adelanto ~ clusters_7.cluster, data = mydata7, FUN = median)
+```
+
+
+
+```{r}
+
+aggregate(Media_dias_adelanto ~ clusters_2.cluster, data = mydata2, FUN = mean)
+aggregate(Media_dias_adelanto ~ clusters_3.cluster, data = mydata3, FUN = mean)
+aggregate(Media_dias_adelanto ~ clusters_4.cluster, data = mydata4, FUN = mean)
+aggregate(Media_dias_adelanto ~ clusters_5.cluster, data = mydata5, FUN = mean)
+aggregate(Media_dias_adelanto ~ clusters_6.cluster, data = mydata6, FUN = mean)
+aggregate(Media_dias_adelanto ~ clusters_7.cluster, data = mydata7, FUN = mean)
+```
+
+```{r}
+
+aggregate(Media_dias_adelanto ~ clusters_2.cluster, data = mydata2, FUN = sd)
+aggregate(Media_dias_adelanto ~ clusters_3.cluster, data = mydata3, FUN = sd)
+aggregate(Media_dias_adelanto ~ clusters_4.cluster, data = mydata4, FUN = sd)
+aggregate(Media_dias_adelanto ~ clusters_5.cluster, data = mydata5, FUN = sd)
+aggregate(Media_dias_adelanto ~ clusters_6.cluster, data = mydata6, FUN = sd)
+aggregate(Media_dias_adelanto ~ clusters_7.cluster, data = mydata7, FUN = sd)
+
+```
+
+
+
+
+
+
+```{r}
+
+
+plot(mydata3$Media_dias_adelanto, col = clusters_3$cluster, main = "Media de dias de adelanto, 3 clusters")
+plot(mydata3$Media_dias_tarde, col = clusters_3$cluster, main = "Media de dias de atraso, 3 clusters")
+
+plot(mydata4$Media_dias_adelanto, col = clusters_4$cluster, main = "Media de dias de adelanto, 4 clusters")
+plot(mydata4$Media_dias_tarde, col = clusters_4$cluster, main = "Media de dias de atraso, 4 clusters")
+
+plot(mydata5$Media_dias_adelanto, col = clusters_5$cluster, main = "Media de dias de adelanto, 5 clusters")
+plot(mydata5$Media_dias_tarde, col = clusters_5$cluster, main = "Media de dias de atraso, 5 clusters")
+
+plot(mydata6$Media_dias_adelanto, col = clusters_6$cluster, main = "Media de dias de adelanto, 6 clusters")
+plot(mydata6$Media_dias_tarde, col = clusters_6$cluster, main = "Media de dias de atraso, 6 clusters")
+
+plot(mydata7$Media_dias_adelanto, col = clusters_7$cluster, main = "Media de dias de adelanto, 7 clusters")
+plot(mydata7$Media_dias_tarde, col = clusters_7$cluster, main = "Media de dias de atraso, 7 clusters")
+
+
+
+#Vamos claramente que no tenemos grupos claros
+
+```
+
+
+```{r}
+
+#Gráficamente
+
+ggplot(data = mydata2, mapping = aes(x = clusters_2.cluster, y = Media_dias_adelanto, group = clusters_2.cluster)) + 
+    geom_boxplot() +
+    theme_bw() +
+    theme(legend.position = "none")+
+    ggtitle("2 Cluster ")
+
+ggplot(data = mydata3, mapping = aes(x = clusters_3.cluster, y = Media_dias_adelanto, group = clusters_3.cluster)) + 
+      geom_boxplot() +
+      theme_bw() +
+      theme(legend.position = "none")+
+      ggtitle("3 Cluster ")
+
+ggplot(data = mydata4, mapping = aes(x = clusters_4.cluster, y = Media_dias_adelanto, group = clusters_4.cluster)) + 
+      geom_boxplot() +
+      theme_bw() +
+      theme(legend.position = "none")+
+      ggtitle("4 Cluster ")
+
+ggplot(data = mydata5, mapping = aes(x = clusters_5.cluster, y = Media_dias_adelanto, group = clusters_5.cluster)) + 
+      geom_boxplot() +
+      theme_bw() +
+      theme(legend.position = "none")+
+      ggtitle("5 Cluster ")
+
+ggplot(data = mydata6, mapping = aes(x = clusters_6.cluster, y = Media_dias_adelanto, group = clusters_6.cluster)) +
+      geom_boxplot() +
+      theme_bw() +
+      theme(legend.position = "none")+
+      ggtitle("6 Cluster ")
+
+ggplot(data = mydata7, mapping = aes(x = clusters_7.cluster, y = Media_dias_adelanto, group = clusters_7.cluster)) +
+      geom_boxplot() +
+      theme_bw() +
+      theme(legend.position = "none")+
+      ggtitle("7 Cluster ")
+
+```
+
+```{r}
+
+library(mclust)
+fit <- Mclust(agrupados)
+plot(fit) # dibujamos los resultados
+
+#No es visual pero el gran numero de variables
+```
+
+
+```{r}
+
+library(fpc)
+plotcluster(agrupados,  clusters_2$cluster)
+plotcluster(agrupados,  clusters_3$cluster)
+plotcluster(agrupados,  clusters_4$cluster)
+plotcluster(agrupados,  clusters_5$cluster)
+plotcluster(agrupados,  clusters_6$cluster)
+plotcluster(agrupados,  clusters_7$cluster)
+```
+
+
+##Matrices de confusión
+
+```{r}
+table(mydata2$clusters_2.cluster, mydata3$clusters_3.cluster,
+      dnn=c("2 Cluster","3 Cluster"))
+
+table(mydata3$clusters_3.cluster, mydata4$clusters_4.cluster,
+      dnn=c("3 Cluster","4 Cluster"))
+
+table(mydata4$clusters_4.cluster, mydata5$clusters_5.cluster,
+      dnn=c("4 Cluster","5 Cluster"))
+
+table(mydata5$clusters_5.cluster, mydata6$clusters_6.cluster,
+      dnn=c("5 Cluster","6 Cluster"))
+
+table(mydata6$clusters_6.cluster, mydata7$clusters_7.cluster,
+      dnn=c("6 Cluster","7 Cluster"))
+
+
+
+
+table(mydata2$clusters_2.cluster, mydata4$clusters_4.cluster,
+      dnn=c("2 Cluster","4 Cluster"))
+
+table(mydata3$clusters_3.cluster, mydata5$clusters_5.cluster,
+      dnn=c("3 Cluster","5 Cluster"))
+
+
+
+
+
+
+```
+
+
+
+Realizamos el test de Kruskal-Wallis.
+
+
+```{r}
+
+
+# Kruskal wallis
+tapply(as.numeric(mydata2$Media_dias_adelanto),mydata2$clusters_2.cluster,mean)
+
+KR_2<-kruskal.test(mydata2$Media_dias_adelanto~mydata2$clusters_2.cluster,data=mydata2)
+KR_2
+
+# Kruskal wallis
+tapply(mydata3$Media_dias_adelanto,mydata3$clusters_3.cluster,mean)
+
+KR_3<-kruskal.test(mydata3$Media_dias_adelanto~mydata3$clusters_3.cluster,data=mydata3)
+KR_3
+
+# Kruskal wallis
+tapply(mydata4$Media_dias_adelanto,mydata4$clusters_4.cluster,mean)
+
+KR_4<-kruskal.test(mydata4$Media_dias_adelanto~mydata4$clusters_4.cluster,data=mydata4)
+KR_4
+
+# Kruskal wallis
+tapply(mydata5$Media_dias_adelanto,mydata5$clusters_5.cluster,mean)
+
+KR_5<-kruskal.test(mydata5$Media_dias_adelanto~mydata5$clusters_5.cluster,data=mydata5)
+KR_5
+
+# Kruskal wallis
+tapply(mydata6$Media_dias_adelanto,mydata6$clusters_6.cluster,mean)
+
+KR_6<-kruskal.test(mydata6$Media_dias_adelanto~mydata6$clusters_6.cluster,data=mydata6)
+KR_6
+
+# Kruskal wallis
+tapply(mydata7$Media_dias_adelanto,mydata7$clusters_7.cluster,mean)
+
+KR_7<-kruskal.test(mydata7$Media_dias_adelanto~mydata7$clusters_7.cluster,data=mydata7)
+KR_7
+
+
+
+#No existe diferencias significativas en los datos.
+```
+
+
+```{r}
+# Prueba de Wilcoxon test
+
+wilcox.test( mydata2$clusters_2.cluster,mydata2$Media_dias_adelanto)
+wilcox.test( mydata3$clusters_3.cluster,mydata3$Media_dias_adelanto)
+wilcox.test( mydata4$clusters_4.cluster,mydata4$Media_dias_adelanto)
+wilcox.test( mydata5$clusters_5.cluster,mydata5$Media_dias_adelanto)
+wilcox.test( mydata6$clusters_6.cluster,mydata6$Media_dias_adelanto)
+wilcox.test( mydata7$clusters_7.cluster,mydata7$Media_dias_adelanto)
+```
+
+```{r}
+pairwise.wilcox.test(x= mydata2$Media_dias_adelanto, g= mydata2$clusters_2.cluster, p.adjust.method = "bonferroni")
+
+pairwise.wilcox.test(x= mydata3$Media_dias_adelanto, g= mydata3$clusters_3.cluster, p.adjust.method = "bonferroni")
+
+pairwise.wilcox.test(x= mydata4$Media_dias_adelanto, g= mydata4$clusters_4.cluster, p.adjust.method = "bonferroni")
+
+pairwise.wilcox.test(x= mydata5$Media_dias_adelanto, g= mydata5$clusters_5.cluster, p.adjust.method = "bonferroni")
+
+pairwise.wilcox.test(x= mydata6$Media_dias_adelanto, g= mydata6$clusters_6.cluster, p.adjust.method = "bonferroni")
+
+pairwise.wilcox.test(x= mydata7$Media_dias_adelanto, g= mydata7$clusters_7.cluster, p.adjust.method = "bonferroni")
+```
+
+
+
+
+
+```{r}
+library(cluster)
+agrup2.pam <- pam(agrupados, 2)
+agrup2.pam 
+summary(silhouette(agrup2.pam))
+plot(silhouette(agrup2.pam), col=1:2, border=NA)
+
+agrup3.pam <- pam(agrupados, 3)
+agrup3.pam 
+summary(silhouette(agrup3.pam))
+plot(silhouette(agrup3.pam), col=1:3, border=NA)
+
+agrup4.pam <- pam(agrupados, 4)
+agrup4.pam 
+summary(silhouette(agrup4.pam))
+plot(silhouette(agrup4.pam), col=1:4, border=NA)
+
+agrup5.pam <- pam(agrupados, 5)
+agrup5.pam 
+summary(silhouette(agrup5.pam))
+plot(silhouette(agrup5.pam), col=1:5, border=NA)
+
+agrup6.pam <- pam(agrupados, 6)
+agrup6.pam 
+summary(silhouette(agrup6.pam))
+plot(silhouette(agrup6.pam), col=1:6, border=NA)
+
+agrup7.pam <- pam(agrupados, 7)
+agrup7.pam 
+summary(silhouette(agrup7.pam))
+plot(silhouette(agrup7.pam), col=1:7, border=NA)
+
+
+# Vemos los grupos para K=3 cluster
+# Para k=4 los dos últimos grupos vemos que es la división del útimo grupo k=3 en dos diferentes
+# Para k=5 , k= 6 y k= 7 tenemos que algunas silhoutte aparece en negativo, es decir que esta clasificaciones no seran buenas, esos diferentes grupos perteneceran a otros.
+```
+
+
+
+#Más gráficos.
+
+```{r}
+plot(mydata3[c("Media_dias_adelanto","Tipo_Telefono")], xlab="Media dias adelanto", ylab="Cluster",col=mydata3$clusters_3.cluster) 
+title(main="Nube de puntos agrupados", col.main="blue", font.main=1)
+
+# Colores por clusters:
+NumCluster=3
+palette()[1:NumCluster]
+
+
+plot(mydata3[c("Media_dias_adelanto","Tiene_Gestoria")], xlab="Media dias adelanto", ylab="Tiene Gestoria",col=mydata3$clusters_3.cluster) 
+title(main="Nube de puntos agrupados", col.main="blue", font.main=1)
+
+# Colores por clusters:
+NumCluster=3
+palette()[1:NumCluster]
+
+#Los grupos no están claramente diferenciados
+
+```
+
+
+
+#Tomando agrupación jerarquica: hclust
+
+```{r}
+#matriz de las distancias
+dist(agrupados)^2
+
+
+d <- dist(agrupados, method = "euclidean")
+H.agrup <- hclust(d, method="ward.D2")
+
+plot(H.agrup) # dibujamos dendograma
+
+groups <- cutree(H.agrup, k=3) # cortamos el arbol en 3 cluster
+# dibujamos dendogram
+rect.hclust(H.agrup, k=3, border="red")
+#Como  tenemos 2928 empresas, el dendograma no es visual para nuestro caso.
+
+
+```
+
+```{r}
+#Si escalamos el data frame
+hagrup=scale(agrupados)
+clus1<-hclust(dist(hagrup)^2, method = "average")
+plot(clus1)
+
+#valor mde medida de proximidad a la que se van formando los cluster
+clus1$height
+print(clus1)
+
+#No mejoramos los resultados
+
+```
+
+
+
+
+
+
+
+
+#Arbol de clasificación
+
+
+```{r}
+library(ggplot2)
+library(lattice)
+library(rpart)
+library(rpart.plot)
+library(caret)
+
+```
+
+```{r}
+agrupados3<-agrupados[,-c(2:4)]
+binary.model <- rpart(Media_dias_adelanto~., data = agrupados3)
+binary.model
+rpart.plot(binary.model)
+```
+
+
+
+```{r}
+#Para realizar el arbol de clasificación no tomaré en cuenta las varables media dias de adelanto y de atraso (ya que tenemos las variables veces de adelanto y atraso) y ademas la variablo no tiene gestoria.
+
+agrupados1<-agrupados[,-c(1,3,4)]
+```
+
+
+#Model with binary response
+```{r}
+#Objeto->veces adelanto
+binary.model <- rpart(Veces_adelanto~., data = agrupados1)
+binary.model
+rpart.plot(binary.model)
+```
+
+```{r}
+binary.model10 <- rpart(Veces_atraso~Tipo_Carta+Tipo_Email+Tipo_Fax+Tipo_Otros+Tipo_Telefono+Tipo_Web, data = agrupados1)
+binary.model10
+rpart.plot(binary.model10)
+```
+
+
+
+```{r}
+#Objeto->veces atraso
+agrupados2<-agrupados[,-c(1:3)]
+binary.model <- rpart(Veces_atraso~., data = agrupados2)
+binary.model
+rpart.plot(binary.model)
+
+```
+
+```{r}
+binary.model10 <- rpart(Veces_atraso~Tipo_Carta+Tipo_Email+Tipo_Fax+Tipo_Otros+Tipo_Telefono+Tipo_Web, data = agrupados2)
+binary.model10
+rpart.plot(binary.model10)
+```
+
+
+
+
+
+```{r}
+#Para realizar la comprobación vamos a tomar los datos test y training
+
+set.seed(2018)
+
+ind <- sample(2, nrow(agrupados1), replace = TRUE, prob = c(0.7, 0.3))
+# Train (70%)
+train <- agrupados1[ind == 1, ]
+dim(train) 
+
+# Test (30%)
+test <- agrupados1[ind == 2, ] 
+dim(test)
+```
+
+```{r}
+
+
+arbol_2 <- rpart(Veces_adelanto~., data = train, control = rpart.control(cp = 0.0001))
+prediccion_2 <- predict(arbol_2, newdata = test)
+table(prediccion_2, test$Veces_adelanto)
+printcp(arbol_2)
+
+bestcp <- arbol_2$cptable[which.min(arbol_2$cptable[,"xerror"]),"CP"]
+tree_pruned <- prune(arbol_2, cp = bestcp)
+
+prueba=as.data.frame(prediccion_2)
+test_target=as.data.frame(test$Veces_adelanto)
+total_predict=cbind(prueba,test_target)
+
+
+confMat <- table(prediccion_2,test$Veces_adelanto) 
+confMat
+accuracy <- sum(diag(confMat))/sum(confMat) #ESTÁ MAL
+accuracy
+```
+
+
+
+
+```{r}
+
+#Obtenemos lo mismo
+#multi.class.model <- rpart(Veces_adelanto~., data = agrupados)
+#rpart.plot(multi.class.model)
+```
+
+
+
+#Random Forest
+
+Random Forests es una herramienta que combina el poder de muchos árboles de decisión, la aleatorización juiciosa y el aprendizaje conjunto para producir modelos predictivos asombrosamente precisos, clasificaciones de importancia variable perspicaces, imputaciones de valor faltante, segmentaciones novedosas e informes extremadamente nítidos registro por registro. para la comprensión profunda de los datos.
+
+
+#Vamos a crear la variable dias de adelanto categorizada de tal manera que los que envien el ultimo dia le llamaremos 1 , los que entregan de 1 a 5 dias de adelanto como 2 y si entregan con más de 5 dias como 3.
+
+```{r}
+
+AdelantCat<-0
+
+for(i in 1:length(Veces_adelanto)){
+  
+  if(Veces_adelanto[i]==0){
+    AdelantCat[i]<-1
+  }else if(0<Veces_adelanto[i] & Veces_adelanto[i]<=5){
+    AdelantCat[i]<-2
+  }else if(Veces_adelanto[i]>5){
+    AdelantCat[i]<-3
+  }
+ 
+}
+
+TablaRamdonF<-cbind(agrupados,AdelantCat)
+
+```
+
+
+```{r}
+library(randomForest)
+library(caret)
+
+TablaRamdonF<-TablaRamdonF[,-c(1,2)]
+
+AdelantCat<-as.factor(AdelantCat)
+#Si una variable dependiente es un factor, se asume la clasificación, de lo contrario se asume la regresión. Si se omite, randomForest se ejecutará en modo no supervisado. Por lo que la tomaremos como factor
+model_random_forest <- randomForest(as.factor(AdelantCat)~.,data=TablaRamdonF, ntree=500)
+model_random_forest 
+
+importance(model_random_forest)
+plot(model_random_forest)
+
+plot(importance(model_random_forest), lty=2, pch=16)
+lines(importance(model_random_forest))
+varImpPlot(model_random_forest)
+
+#En este caso, el número de variables que se intentaron en cada división se basa en la siguiente fórmula. -1 se usa porque el conjunto de datos también contiene una variable dependiente.
+floor(sqrt(ncol(TablaRamdonF)-1))
+
+#El número de variables seleccionadas en cada división se denota por mtry en la función randomforest.
+mtry <- tuneRF(TablaRamdonF[-1],TablaRamdonF$AdelantCat, ntreeTry=500,
+               stepFactor=1.5,improve=0.01, trace=TRUE, plot=TRUE)
+best.m <- mtry[mtry[, 2] == min(mtry[, 2]), 1]
+print(mtry)
+print(best.m)
+
+
+#Parámetros en la función tuneRF
+#El stepFactor especifica en cada iteración, mtry está deflactado por este valor
+#La mejora especifica que la mejora (relativa) en el error de OOB debe ser así para que la búsqueda #continúe
+#La traza especifica si se imprime el progreso de la búsqueda.
+#El gráfico especifica si se debe trazar el error OOB como función de mtry
+
+
+```
+
+
+```{r}
+# Evolución del error según el número de árboles
+plot(model_random_forest)
+
+#Se han construido 500 árboles de decisión o un bosque utilizando el aprendizaje basado en el algoritmo de #bosque aleatorio. Podemos trazar la tasa de error a través de árboles de decisión. El gráfico parece #indicar que después de 100 árboles de decisión, no hay una reducción significativa en la tasa de error.
+#
+#El gráfico de importancia variable también es una herramienta útil y se puede representar mediante la #función varImpPlot. Las 7 variables principales se seleccionan y trazan en función de la precisión del #modelo y el valor de Gini. También podemos obtener una tabla con un orden de importancia decreciente en #función de una medida (1 para la precisión del modelo y la impureza de 2 nodos)
+
+
+```
+
+
+```{r}
+model_random_forest <- randomForest(as.factor(AdelantCat)~.,data=TablaRamdonF, ntree=200)
+model_random_forest 
+
+importance(model_random_forest)
+plot(model_random_forest)
+
+plot(importance(model_random_forest), lty=2, pch=16)
+lines(importance(model_random_forest))
+varImpPlot(model_random_forest)
+
+#En este caso, el número de variables que se intentaron en cada división se basa en la siguiente fórmula. -1 se usa porque el conjunto de datos también contiene una variable dependiente.
+floor(sqrt(ncol(TablaRamdonF)-1))
+
+#El número de variables seleccionadas en cada división se denota por mtry en la función randomforest.
+mtry <- tuneRF(TablaRamdonF[-1],TablaRamdonF$AdelantCat, ntreeTry=100,
+               stepFactor=1.5,improve=0.01, trace=TRUE, plot=TRUE)
+best.m <- mtry[mtry[, 2] == min(mtry[, 2]), 1]
+print(mtry)
+print(best.m)
+
+```
+
+
+
+
+
+
+#Veamos el conjunto de predicción
+```{r}
+
+set.seed(2018)
+
+ind <- sample(2, nrow(TablaRamdonF), replace = TRUE, prob = c(0.7, 0.3))
+# Train (70%)
+trainf <- TablaRamdonF[ind == 1, ]
+dim(trainf) 
+
+# Test (30%)
+testf <- TablaRamdonF[ind == 2, ] 
+dim(testf)
+
+```
+
+
+```{r}
+
+mod<- randomForest(x=train[,1:16], y=train[,17],
+                   ntree=1000, xtest=test[,1:16], ytest=test[,17],
+                   importance=T, keep.forest=T)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+#Construimos de nuevo el modelo usando el mejor valor mtry
+set.seed(2018)
+
+ranfor1 <-randomForest(Veces_adelanto~.,data=agrupados, mtry=best.m, importance=TRUE,ntree=500)
+print(ranfor1)
+
+#Evaluate variable importance
+importance(ranfor1)
+varImpPlot(ranfor1)
+
+#Cuanto mayor sea el valor de la disminución media de la puntuación gini, mayor será la importancia de la variable en el modelo. En el gráfico que se muestra arriba, el saldo de la cuenta es la variable más importante. La variable limpio será la más importante seguida de tipo_web.
+```
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+library(ggplot2)
+library(lattice)
+library(rpart)
+library(rpart.plot)
+library(caret)
+
+```
+
+
+
+```{r}
+#Para realizar el arbol de clasificación no tomaré en cuenta las varables media dias de adelanto y de atraso (ya que tenemos las variables veces de adelanto y atraso) y ademas la variablo no tiene gestoria.
+
+agrupados<-agrupados[,-c(1,3,20)]
+```
+
+
+#Model with binary response
+```{r}
+binary.model <- rpart(Veces_adelanto~., data = agrupados)
+rpart.plot(binary.model)
+```
+
+```{r}
+binary.model <- rpart(Veces_atraso~., data = agrupados)
+rpart.plot(binary.model)
+
+```
+
+```{r}
+
+#binary.model <- rpart(Veces_adelanto~., data = dts1)
+#rpart.plot(binary.model) 
+##Si quitamos la media de dias de adelanto no crea el árbol
+```
+
+```{r}
+#binary.model <- rpart(Media_dias_adelanto~., data = dts2)#Quitabamos modo envio, gestoria, media tarde, #veces atraso y adelanto.
+#rpart.plot(binary.model) 
+```
+
+
+# A model with a continuous response (an anova model).
+```{r}
+#Obtenemos lo mismo
+anova.model <- rpart(Veces_adelanto~., data=agrupados)
+rpart.plot(anova.model)
+```
+
+
+
+```{r}
+#Para realizar la comprobación vamos a tomar los datos test y training
+
+set.seed(2018)
+
+ind <- sample(2, nrow(agrupados), replace = TRUE, prob = c(0.7, 0.3))
+# Train (70%)
+train <- agrupados[ind == 1, ]
+dim(train) 
+
+# Test (30%)
+test <- agrupados[ind == 2, ] 
+dim(test)
+```
+
+```{r}
+#Ver aqui
+# https://rpubs.com/jboscomendoza/arboles_decision_clasificacion
+
+
+
+arbol_2 <- rpart(formula = Veces_adelanto ~ ., data = train)
+
+prediccion_2 <- predict(arbol_2, newdata = test)
+
+```
+
+
+```{r}
+library(tree)
+
+# Convertimos la variable respuesta a tipo factor
+#agrupados$Veces_adelanto <- as.factor(agrupados$Veces_adelanto)
+#
+#arbol_clasificacion <- rpart(Veces_adelanto~., data=agrupados)
+#
+#plot(x = arbol_clasificacion)
+#
+#text(x = arbol_clasificacion, splits = TRUE, pretty = 0, cex = 0.8, col = "firebrick")
+#
+#
+#
+#
+#
+#arbol_clasificacion1 <- tree(formula = Veces_adelanto~., data=train)
+#
+#
+#predicciones <- predict(arbol_clasificacion1, newdata = test)
+#
+#table(predicciones, test$Veces_adelanto)
+```
+
+
+
+
+
+
+
+#Vamos a crear la variable dias de adelanto categorizada de tal manera que los que envien el ultimo dia le llamaremos 1 , los que entregan de 1 a 5 dias de adelanto como 2 y si entregan con más de 5 dias como 3.
+
+```{r}
+
+
+AdelantCat<-0
+
+for(i in 1:length(Veces_adelanto)){
+  
+  if(Veces_adelanto[i]==0){
+    AdelantCat[i]<-1
+  }else if(0<Veces_adelanto[i] & Veces_adelanto[i]<=5){
+    AdelantCat[i]<-2
+  }else if(Veces_adelanto[i]>5){
+    AdelantCat[i]<-3
+  }
+ 
+}
+
+TablaRamdonF<-cbind(agrupados,AdelantCat)
+
+```
+
+
+```{r}
+library(randomForest)
+library(caret)
+
+TablaRamdonF<-TablaRamdonF[,-c(1,2)]
+
+Cat_Veces_adelanto<-as.factor(AdelantCat)
+#Si una variable dependiente es un factor, se asume la clasificación, de lo contrario se asume la regresión. Si se omite, randomForest se ejecutará en modo no supervisado. Por lo que la tomaremos como factor
+model_random_forest <- randomForest(Cat_Veces_adelanto~.,data=TablaRamdonF, ntree=500)
+model_random_forest
+
+#En este caso, el número de variables que se intentaron en cada división se basa en la siguiente fórmula. -1 se usa porque el conjunto de datos también contiene una variable dependiente.
+floor(sqrt(ncol(agrupados)-1))
+
+#El número de variables seleccionadas en cada división se denota por mtry en la función randomforest.
+mtry <- tuneRF(TablaRamdonF[-1],TablaRamdonF$Cat_Veces_adelanto, ntreeTry=500,
+               stepFactor=1.5,improve=0.01, trace=TRUE, plot=TRUE)
+best.m <- mtry[mtry[, 2] == min(mtry[, 2]), 1]
+print(mtry)
+print(best.m)
+
+#Parámetros en la función tuneRF
+#El stepFactor especifica en cada iteración, mtry está deflactado por este valor
+#La mejora especifica que la mejora (relativa) en el error de OOB debe ser así para que la búsqueda #continúe
+#La traza especifica si se imprime el progreso de la búsqueda.
+#El gráfico especifica si se debe trazar el error OOB como función de mtry
+
+
+```
+
+
+```{r}
+# Evolución del error según el número de árboles
+plot(model_random_forest)
+
+#Se han construido 500 árboles de decisión o un bosque utilizando el aprendizaje basado en el algoritmo de #bosque aleatorio. Podemos trazar la tasa de error a través de árboles de decisión. El gráfico parece #indicar que después de 100 árboles de decisión, no hay una reducción significativa en la tasa de error.
+#
+#El gráfico de importancia variable también es una herramienta útil y se puede representar mediante la #función varImpPlot. Las 7 variables principales se seleccionan y trazan en función de la precisión del #modelo y el valor de Gini. También podemos obtener una tabla con un orden de importancia decreciente en #función de una medida (1 para la precisión del modelo y la impureza de 2 nodos)
+
+
+```
+
+```{r}
+
+AtrasoCat<-0
+
+for(i in 1:length(Veces_atraso)){
+  
+  if(Veces_atraso[i]==0){
+    AtrasoCat[i]<-1
+  }else if(0<Veces_atraso[i] & Veces_atraso[i]<=5){
+    AtrasoCat[i]<-2
+  }else if(Veces_atraso[i]>5){
+    AtrasoCat[i]<-3
+  }
+ 
+}
+
+TablaRamdonF2<-cbind(agrupados,AtrasoCat)
+```
+
+
+```{r}
+TablaRamdonF<-TablaRamdonF2[,-c(1:4)]
+
+Cat_Veces_atraso<-as.factor(AtrasoCat)
+#Si una variable dependiente es un factor, se asume la clasificación, de lo contrario se asume la regresión. Si se omite, randomForest se ejecutará en modo no supervisado. Por lo que la tomaremos como factor
+model_random_forest <- randomForest(Cat_Veces_atraso~.,data=TablaRamdonF2, ntree=500)
+model_random_forest
+
+#En este caso, el número de variables que se intentaron en cada división se basa en la siguiente fórmula. -1 se usa porque el conjunto de datos también contiene una variable dependiente.
+floor(sqrt(ncol(agrupados)-1))
+
+#El número de variables seleccionadas en cada división se denota por mtry en la función randomforest.
+mtry <- tuneRF(TablaRamdonF2,TablaRamdonF$Cat_Veces_atraso, ntreeTry=500,
+               stepFactor=1.5,improve=0.01, trace=TRUE, plot=TRUE)
+best.m <- mtry[mtry[, 2] == min(mtry[, 2]), 1]
+print(mtry)
+print(best.m)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#######################################################################
+
+#Realizamos lo mismo tomando veces de atraso
+```{r}
+Veces_atraso<-as.factor(Veces_atraso)
+#Si una variable dependiente es un factor, se asume la clasificación, de lo contrario se asume la regresión. Si se omite, randomForest se ejecutará en modo no supervisado. Por lo que la tomaremos como factor
+model_random_forest2 <- randomForest(as.factor(Veces_atraso)~., data=agrupados, ntree=500)
+model_random_forest2
+
+#En este caso, el número de variables que se intentaron en cada división se basa en la siguiente fórmula. -1 se usa porque el conjunto de datos también contiene una variable dependiente.
+floor(sqrt(ncol(agrupados)-1))
+
+#El número de variables seleccionadas en cada división se denota por mtry en la función randomforest.
+mtry <- tuneRF(agrupados[-1],agrupados$Veces_atraso, ntreeTry=500,
+               stepFactor=1.5,improve=0.01, trace=TRUE, plot=TRUE)
+best.m <- mtry[mtry[, 2] == min(mtry[, 2]), 1]
+print(mtry)
+print(best.m)
+```
+
+
+```{r}
+plot(model_random_forest2)
+
+#Se han construido 500 árboles de decisión o un bosque utilizando el aprendizaje basado en el algoritmo de #bosque aleatorio. Podemos trazar la tasa de error a través de árboles de decisión. El gráfico parece #indicar que después de 100 árboles de decisión, no hay una reducción significativa en la tasa de error.
+#
+#El gráfico de importancia variable también es una herramienta útil y se puede representar mediante la #función varImpPlot. Las 16 variables principales se seleccionan y trazan en función de la precisión del #modelo y el valor de Gini. También podemos obtener una tabla con un orden de importancia decreciente en #función de una medida (1 para la precisión del modelo y la impureza de 2 nodos)
+```
+
+```{r}
+ranfor2 <-randomForest(Veces_atraso~.,data=agrupados, mtry=best.m, importance=TRUE,ntree=500)
+print(ranfor2)
+
+#Evaluate variable importance
+importance(ranfor2)
+varImpPlot(ranfor2)
+
+#no contacto y veces de adelanto es lo mas influyente
+```
+
+
+
+```{r}
+table(Veces_atraso)
+```
+
+
+
+
+
+
+```{r}
+#Para realizar la comprobación vamos a tomar los datos test y training
+
+set.seed(2018)
+
+ind <- sample(2, nrow(agrupados), replace = TRUE, prob = c(0.7, 0.3))
+# Train (70%)
+train <- agrupados[ind == 1, ]
+dim(train) 
+
+# Test (30%)
+test <- agrupados[ind == 2, ] 
+dim(test)
+```
+
+#https://www.r-bloggers.com/how-to-implement-random-forests-in-r/
+
+#Predicción
+```{r}
+model_random_forest <- randomForest(as.factor(Veces_atraso)~., data=train, ntree=500,proximity=T,nodesize=5)
+
+preds_random_forest <- predict(model_random_forest, newdata = test)
+
+table(preds_random_forest, test$Veces_atraso)
+
+
+# Calculamos el % de aciertos
+sum(preds_random_forest == test$Veces_atraso)/ length(test$Veces_atraso)*100
+
+
+```
+
+
+
+
+
+
+
+#Regresión multiple
+
+```{r}
+library(psych)
+agrupados<-agrupados[,-10] #ya que aparecen NAN
+
+cor(agrupados, use = "complete.obs") #No tiene correlación fuerte dos a dos
+
+Reg1<-lm(Veces_adelanto~., data = agrupados) #Multiple R-squared:  0.3301
+summary(Reg1)
+
+Reg2<-lm(Veces_adelanto~Tipo_Email+Tipo_Fax+Tipo_Telefono+Tipo_Web+Tipo_Carta+Tipo_Otros+Tiene_Gestoria, data = agrupados) #Multiple R-squared:  0.06563
+summary(Reg2)
+
+Reg3<-lm(Veces_adelanto~Tiene_Gestoria, data = agrupados)
+summary(Reg3)#Multiple R-squared:  0.03131,
+
+```
+
+
+```{r}
+#Comparamos modelos
+anova(Reg1,Reg2)
+```
+
+
+
+```{r}
+#mosaicplot(~Media_dias_adelanto+Tiene_Gestoria+No_Tiene_Gestoria, agrupados, shade=TRUE)
+```
+
+
+
+# V Cramer
+# http://analisisydecision.es/v-de-cramer-con-r-analizar-la-correlacion-de-factores/
+
+```{r}
+library(vcd)
+dat<-ftable(agrupados$empresas,agrupados$Veces_adelanto)
+assocstats(dat)
+
+```
+
+```{r}
+dat1<-ftable(agrupados$empresas,agrupados$Veces_atraso)
+assocstats(dat)
+```
+
+
+```{r}
+dat1<-ftable(agrupados$empresas,agrupados$Tiene_Gestoria)
+assocstats(dat)
+```
+
+
+
+
+#Media_dias_adelanto
+
+```{r}
+
+arbol<-rpart(Media_dias_adelanto~., data= agrupados)
+arbol
+
+par(mfrow=c(1,1))
+prp(arbol, type = 2)
+
+#Para poder elegir el mejor valor de complegidad y podar el arbol
+
+arbol$cptable # Vemos cp=factor de complegidad
+              # nsplit= numero de divisiones , rel_error= error relativo apartir del nodo raiz , xerror=error cruzado  , xstd= desv tipica cruzada
+              # min xerror + strd tomamos el menor de los xerror por debajo de la suma, 0.9134168 + 0.03481476 = 0.948231 #tomamos 4
+plotcp(arbol)
+
+# Si tomamos 4 es el que más se acerca al error de complegidad del 0.056
+#Lo cortamos ese valor.
+
+rpart:: arbol_cortado <- prune(agrupados, cp= 0.02284599)
+prp(arbol_cortado, type = 2)
+
+```
+
+#Predecir
+
+```{r}
+preds<-predict(arbol_cortado, test)
+
+#Error cuadratico medio
+sqrt(mean((preds - test$Media_dias_adelanto)^2)) # Por lo que cometemos un error de 4.17 (Es bastante alto)
+
+#Original
+preds1<-predict(arbol, test)
+
+#Error cuadratico medio
+sqrt(mean((preds1 - test$Media_dias_adelanto)^2)) # Por lo que cometemos un error de 4.39 (No es muy diferente)
+```
+
+
+
+#Media_dias_atraso
+```{r}
+
+arbol<-rpart(Media_dias_tarde~ ., data= agrupados)
+arbol
+
+par(mfrow=c(1,1))
+prp(arbol, type = 2)
+
+#Para poder elegir el mejor valor de complegidad y podar el arbol
+
+arbol$cptable # Vemos cp=factor de complegidad
+              # nsplit= numero de divisiones , rel_error= error relativo apartir del nodo raiz , xerror=error cruzado  , xstd= desv tipica cruzada
+              # min xerror + strd tomamos el menor de los xerror por debajo de la suma, 0.6252406+0.04042959=0.6656702 #tomamos 4
+plotcp(arbol)
+
+## Si tomamos 4 es el que más se acerca al error de complegidad del 0.056
+#Lo cortamos ese valor.
+
+arbol_cortado<- prune(arbol, cp= 0.02238184)
+prp(arbol_cortado, type = 2)
+
+```
+
+```{r}
+arbol1<-rpart(Media_dias_tarde~ ., data= agrupados)
+arbol1
+
+par(mfrow=c(1,1))
+prp(arbol1, type = 2)
+```
+
+```{r}
+dts1<-agrupados[,-c(2:15)]
+arbol2<-rpart(Media_dias_adelanto~.,data= dts1)
+arbol2
+par(mfrow=c(1,1))
+prp(arbol2, type = 2) #Si las variables de las que depende rpart son la forma de envio y la gestoria
+#El arbol no realiza clasificación
+
+```
+
+```{r}
+dts2<-agrupados[,-c(2:4,15:23)]
+arbol3<-rpart(Media_dias_adelanto~.,data=dts2) #Toma las encuestas limpio, las incidencias provisionales y el no contact
+arbol3
+par(mfrow=c(1,1))
+prp(arbol2, type = 2)
+```
+
+
+
+#Vamos a estandarizar 
+```{r}
+agrup_stand<-scale(agrupados[,-24])
+agrup_stand<-data.frame(agrup_stand[,-c(6,15)])
+#Las columnas nulas aparecen como NaN, eliminamos
+```
+
+```{r}
+reg_stand<-lm(Veces_adelanto~.,data = agrup_stand)
+summary(reg_stand)
+```
+
+```{r}
+reg1_stand<-lm(formula = Veces_adelanto ~ Tipo_Email + Tipo_Fax + Tipo_Telefono + 
+    Tipo_Web + Tipo_Carta + Tipo_Otros + Tiene_Gestoria + No_Tiene_Gestoria, 
+    data = agrup_stand)
+summary(reg1_stand)
+```
+
+
+#Model with binary response
+```{r}
+
+#Igual que sin estadarizar los datos
+
+binary.model <- rpart(Veces_adelanto~., data = agrup_stand)
+rpart.plot(binary.model)
+```
+
+
+
+
+
+
+
+
+
+```{r}
+#Podriamos ver que modelo se ajusta mejor
+#anova(reg1,reg2)
+```
+
+```{r}
+#Para ver si el modelo se ajusta bien debemos realizar el estudio de los residuos
+#residuos<-rstandard( )
+#win.graph()
+#par(mfrow=c(1,3))
+#hist(residuos)
+#boxplot(residuos)
+#qqnorm(residuos)
+#qqline(residuos)
+
+#la variaza constante
+
+#Independencia de los errores
+```
+
+
+
+```{r}
+#Predecir
+#preds<-predict(arbol_cortado, test)
+#
+##Error cuadratico medio
+#sqrt(mean((preds - test$Media_dias_tarde)^2)) # Por lo que cometemos un error de 16.89553 (Es bastante #alto)
+#
+##Original
+#preds1<-predict(arbol, test)
+#
+##Error cuadratico medio
+#sqrt(mean((preds1 - test$Media_dias_tarde)^2)) # Por lo que cometemos un error de 16.61433 (No es muy diferente)
+```
+
+```{r}
+
+#arbol<-rpart(Veces_adelanto~Veces_atraso, data= train)
+#arbol
+#
+#par(mfrow=c(1,1))
+#prp(arbol, type = 2)
+#
+##Para poder elegir el mejor valor de complegidad y podar el arbol
+#
+#arbol$cptable # Vemos cp=factor de complegidad
+#              # nsplit= numero de divisiones , rel_error= error relativo apartir del nodo raiz , #xerror=error cruzado  , xstd= desv tipica cruzada
+#              # min xerror + strd tomamos el menor de los xerror por debajo de la suma, #0.6252406+0.04042959=0.6656702 #tomamos 4
+#plotcp(arbol)
+
+
+```
+
+
+
+
+
+```{r}
+#Curva Rock
+
+###Entregará o no entregará la encuesta
+
+#library(ROCR)
+
+# pred1 <- prediction(data$var, data$var)
+# perf1 <- performance(pred1, "tpr", "fpr")
+# plot(perf1)
+#lines(par()$usr[1:2],par()$usr[3:4])
+# prop.cuts.1 <- data.frame(cut = perf1@alpha.values[[1]],
+#                           fpr = perf1@x.values[[1]],
+#                           tpr = perf1@y.values[[1]])
+#head(prop.cuts.1)
+#tail(prop.cuts.1)
+
+```
+
+
+
+```{r}
+#data(ROCR.simple)
+#pred <- prediction(ROCR.simple$predictions, ROCR.simple$labels)
+#perf <- performance(pred,"tpr","fpr")
+#plot(perf,colorize=TRUE)
+#abline(a=0, b= 1)
+
+
+```
+
+
+
+
+
+
+
+
